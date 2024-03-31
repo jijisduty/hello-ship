@@ -250,7 +250,8 @@ function makeRandomObjects(numCubes) {
   for (var i = 0; i < numCubes; i++) {
     var newObject = chair.clone();
 
-    newObject.position.z = getRandomArbitrary(-15, 15); // Keeping the Z position constant for all cubes
+    newObject.position.z = getRandomArbitrary(-45, -10);
+    newObject.position.x = getRandomArbitrary(-20, 20);
 
     // newObject.scale.set(0.65, 0.65, 0.65); // Keeping the scale the same for all cubes
     newObject.rotation.set(
