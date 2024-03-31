@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+//import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 
 //console.log(Refractor)
@@ -99,9 +99,9 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.getElementById("threejs-container").appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
+// const controls = new OrbitControls(camera, renderer.domElement);
 
-controls.update();
+// controls.update();
 
 /* Lights
  */
