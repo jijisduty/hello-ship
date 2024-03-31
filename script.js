@@ -93,10 +93,11 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
+camera.position.set = (10, 10, 100);
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+document.getElementById("threejs-container").appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 
@@ -107,7 +108,7 @@ controls.update();
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 2.9);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 4.2);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.set(1024, 1024);
 directionalLight.shadow.camera.far = -15;
@@ -115,7 +116,7 @@ directionalLight.shadow.camera.left = -7;
 directionalLight.shadow.camera.top = -70;
 directionalLight.shadow.camera.right = 7;
 directionalLight.shadow.camera.bottom = -7;
-directionalLight.position.set(15, -50, 5);
+directionalLight.position.set(0, 50, 5);
 scene.add(directionalLight);
 
 const pointLight = new THREE.PointLight(0xffffff, 0.5);
@@ -124,11 +125,18 @@ pointLight.position.y = 3;
 pointLight.position.z = 4;
 scene.add(pointLight);
 
+const dudv2 = new THREE.TextureLoader().load(
+  "src/dudv-water-2.jpg",
+  function () {
+    animate();
+  }
+);
+
 /**
  * Sky for reflection
  */
 
-const planeGeometrySky = new THREE.PlaneGeometry(800, 800);
+const planeGeometrySky = new THREE.PlaneGeometry(1000, 1000);
 const planeMaterialSky = new THREE.ShaderMaterial({
   vertexShader: vertexShaderGrad,
   fragmentShader: fragmentShaderGrad,
@@ -145,12 +153,87 @@ const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const cube = new THREE.Mesh(geometry, material);
 //scene.add(cube);
 
-const objGeometry = new THREE.BoxGeometry(1, 1, 1);
-const objMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-const objForCollision = new THREE.Mesh(objGeometry, objMaterial);
-//scene.add(objForCollision);
-objForCollision.scale.x = 0.5;
-objForCollision.position.x = -3;
+//top sky for reflection
+const ceilingGeometry = new THREE.PlaneGeometry(1000, 1000);
+const ceilingMaterial = new THREE.MeshBasicMaterial({ value: dudv2 });
+const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+ceiling.rotation.x = Math.PI / 2;
+//scene.add(ceiling);
+
+// LOADER
+// Instantiate a loader
+const loader = new GLTFLoader();
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("/draco/");
+
+loader.setDRACOLoader(dracoLoader);
+
+var ship, chair;
+var shipLoaded = false;
+
+// Load a glTF resource
+loader.load(
+  // resource URL
+  "models/ship.gltf",
+  // called when the resource is loaded
+  function (gltf) {
+    ship = gltf.scene;
+    scene.add(ship);
+    console.log(ship.size);
+    ship.position.set(0, -2.15, 0);
+    ship.scale.set(0.6, 0.6, 0.6);
+    ship.rotation.x = 0.15;
+    shipLoaded = true;
+
+    // gltf.animations; // Array<THREE.AnimationClip>
+    // gltf.scene; // THREE.Group
+    // gltf.scenes; // Array<THREE.Group>
+    // gltf.cameras; // Array<THREE.Camera>
+    // gltf.asset; // Object
+
+    //changePosition();
+  },
+  // called while loading is progressing
+  function (xhr) {
+    console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
+  },
+  // called when loading has errors
+  function (error) {
+    console.log("An error happened", error);
+  }
+);
+
+function loadChairModel(url) {
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (gltf) => {
+        resolve(gltf.scene);
+      },
+      undefined,
+      (error) => {
+        reject(error);
+      }
+    );
+  });
+}
+
+loadChairModel("models/chair.gltf")
+  .then((loadedChair) => {
+    chair = loadedChair;
+    chair.traverse((child) => {
+      if (child.isMesh) {
+        child.material.map = woodChair;
+        child.material.needsUpdate = true;
+      }
+    });
+
+    makeRandomObjects(7);
+  })
+  .catch((error) => {
+    console.error("Failed to load the chair model:", error);
+  });
 
 var cubes = [];
 
@@ -159,15 +242,22 @@ function getRandomArbitrary(min, max) {
 }
 
 function makeRandomObjects(numCubes) {
+  if (!chair) {
+    console.log("Chair has not been loaded yet.");
+    return; // Early return if chair is not loaded
+  }
+
   for (var i = 0; i < numCubes; i++) {
-    var newObject = objForCollision.clone();
+    var newObject = chair.clone();
 
-    newObject.position.x = getRandomArbitrary(-15, 15);
-    newObject.position.y = 0; // Keeping the Y position constant for all cubes
-    newObject.position.z = getRandomArbitrary(-5, 2); // Keeping the Z position constant for all cubes
+    newObject.position.z = getRandomArbitrary(-15, 15); // Keeping the Z position constant for all cubes
 
-    newObject.scale.set(0.65, 0.65, 0.65); // Keeping the scale the same for all cubes
-    newObject.rotation.set(0, 0, 1); // Keeping the rotation the same for all cubes
+    // newObject.scale.set(0.65, 0.65, 0.65); // Keeping the scale the same for all cubes
+    newObject.rotation.set(
+      getRandomArbitrary(-1, 18),
+      getRandomArbitrary(0, 0.1),
+      getRandomArbitrary(-6, -5.6)
+    ); // Keeping the rotation the same for all cubes
 
     cubes.push(newObject);
 
@@ -175,18 +265,23 @@ function makeRandomObjects(numCubes) {
   }
 }
 
-makeRandomObjects(5); // This will create 10 random cubes
-console.log(cubes);
+//makeRandomObjects(5); // This will create 10 random cubes
 
 const mirrorShader = Reflector.ReflectorShader;
 mirrorShader.vertexShader = vertexShader;
 mirrorShader.fragmentShader = fragmentShader;
+
+//console.log("ship pos", ship.position);
 
 const dudvMap = new THREE.TextureLoader().load(
   "src/waterdudv.jpg",
   function () {
     animate();
   }
+);
+
+const woodChair = new THREE.TextureLoader().load(
+  "src/textures/plywood_diff_4k.jpg"
 );
 
 mirrorShader.uniforms.tDudv = { value: dudvMap };
@@ -205,7 +300,7 @@ mirrorOptions = {
   clipBias: 0.003,
   textureWidth: window.innerWidth,
   textureHeight: window.innerHeight,
-  color: 0x0a5c89,
+  color: 0x003e4f,
   //textureWidth: window.innerWidth * window.devicePixelRatio,
   //textureHeight: window.innerHeight * window.devicePixelRatio,
 };
@@ -213,6 +308,7 @@ mirrorOptions = {
 groundMirror = new Reflector(planeGeometry2, mirrorOptions);
 groundMirror.position.y = -2;
 groundMirror.rotation.x = -Math.PI * 0.5;
+
 scene.add(groundMirror);
 
 //plane
@@ -222,56 +318,14 @@ const planeFloor = new THREE.Mesh(planeGeometry, planeMaterial);
 planeFloor.rotation.x = 5;
 planeFloor.position.y = -1;
 //scene.add(planeFloor);
-camera.position.z = 8;
+camera.position.z = 9;
+camera.position.y = 2.1;
 
 //cube movement borders
-const maxBoundary = window.innerWidth / (window.innerHeight * 0.5);
+const maxBoundary = window.innerWidth / (window.innerHeight * 0.3);
 const minBoundary = -maxBoundary;
-
-// LOADER
-// Instantiate a loader
-const loader = new GLTFLoader();
-
-// Optional: Provide a DRACOLoader instance to decode compressed mesh data
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath("/draco/");
-
-loader.setDRACOLoader(dracoLoader);
-
-let ship;
-
-// Load a glTF resource
-loader.load(
-  // resource URL
-  "models/ship.gltf",
-  // called when the resource is loaded
-  function (gltf) {
-    ship = gltf.scene;
-    scene.add(ship);
-    console.log(ship.size);
-    ship.position.set(0, -2, 0);
-    ship.scale.set(0.6, 0.6, 0.6);
-    ship.rotation.x = 0.1;
-
-    gltf.animations; // Array<THREE.AnimationClip>
-    gltf.scene; // THREE.Group
-    gltf.scenes; // Array<THREE.Group>
-    gltf.cameras; // Array<THREE.Camera>
-    gltf.asset; // Object
-
-    //changePosition();
-  },
-  // called while loading is progressing
-  function (xhr) {
-    console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
-  },
-  // called when loading has errors
-  function (error) {
-    console.log("An error happened", error);
-  }
-);
-
-//ship.position.y = 0;
+let startTime = Date.now();
+//console.log("start time", startTime);
 
 function animate() {
   requestAnimationFrame(animate);
@@ -280,14 +334,26 @@ function animate() {
 
   //   cube.rotation.x += 0.01;
   //   cube.rotation.y += 0.01;
+
   mirrorShader.uniforms.time.value += 0.503;
   groundMirror.material.uniforms.time.value += 0.0503;
 
+  let elapsedTime = Date.now() - startTime;
+  //console.log("elapsed time", elapsedTime);
+  let speed = 0.002; // Speed of the wave
+  let amplitude = 0.1; // Height of the wave
+  let ampShip = 0.05;
+
+  if (shipLoaded) {
+    ship.position.y = Math.sin(elapsedTime * speed) * ampShip - 2.2;
+    // console.log(ship.position);
+  }
   // Update cube positions
   for (var i = 0; i < cubes.length; i++) {
     // Move the cube towards the camera along the Z-axis
-    cubes[i].position.z += 0.01;
-    cubes[i].position.y = -2;
+    cubes[i].position.z += 0.0073;
+    cubes[i].position.y = Math.sin(elapsedTime * speed) * amplitude - 2.2;
+    //console.log("ypos", Math.sin(elapsedTime * speed) * amplitude);
 
     // Optional: Reset cube position after it passes a certain point
     if (cubes[i].position.z > 5) {
@@ -295,6 +361,8 @@ function animate() {
       cubes[i].position.x = getRandomArbitrary(-20, 20); // Optionally randomize the x position again
     }
   }
+  //ship.position.y = Math.sin(elapsedTime * speed) * amplitude - 2.15;
+  //console.log("ship posY", ship.position);
 
   renderer.render(scene, camera);
 }
